@@ -4,6 +4,7 @@ import numpy as np
 from sklearn.compose import ColumnTransformer
 from sklearn.preprocessing import OneHotEncoder
 from sklearn.impute import SimpleImputer
+from sklearn.model_selection import train_test_split
 
 
 def get_transformer(cat_features, numeric_features):
@@ -66,6 +67,33 @@ def get_adult(data_dir='adult'):
 # ______________ Bank ______________
 def read_bank(data_dir='bank'):
     return pd.read_csv(Path(data_dir) / 'bank-full.csv', delimiter=';')
+
+
+def get_bank(data_dir='bank', test_size=0.25, random_state=239):
+    data = read_bank(data_dir)
+    
+    is_protected = (data['marital'] == 'married').astype('int')
+    y = (data['y'] == 'yes').astype('int')
+    data.drop(labels=['y'], axis=1, inplace=True)
+    
+    train, test, y_train, y_test, is_protected_train, is_protected_test = train_test_split(
+        data, y, is_protected, test_size=test_size, random_state=random_state, stratify=(is_protected * 2 + y)
+    )
+    
+    cat_features = []
+    numeric_features = []
+    for name, tp in train.dtypes.items():
+        if tp == 'object':
+            cat_features.append(name)
+        else:
+            numeric_features.append(name)
+    
+    transformer = get_transformer(cat_features, numeric_features)
+    X_train = transformer.fit_transform(train)
+    X_test = transformer.transform(test)
+    
+    return X_train, np.array(y_train), np.array(is_protected_train), \
+           X_test, np.array(y_test), np.array(is_protected_test)
 
 
 # ______________ Compass ______________

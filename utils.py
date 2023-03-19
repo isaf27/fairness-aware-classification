@@ -101,6 +101,33 @@ def read_compass(data_dir='compass'):
     return pd.read_csv(Path(data_dir) / 'propublicaCompassRecividism_data_fairml.csv' / 'propublica_data_for_fairml.csv')
 
 
+def get_compass(data_dir='compass', test_size=0.25, random_state=239):
+    data = read_compass(data_dir)
+    
+    is_protected = (data['Female'] == 1).astype('int')
+    y = (data['Two_yr_Recidivism'] == 1).astype('int')
+    data.drop(labels=['Two_yr_Recidivism'], axis=1, inplace=True)
+    
+    train, test, y_train, y_test, is_protected_train, is_protected_test = train_test_split(
+        data, y, is_protected, test_size=test_size, random_state=random_state, stratify=(is_protected * 2 + y)
+    )
+    
+    cat_features = []
+    numeric_features = []
+    for name, tp in train.dtypes.items():
+        if tp == 'object':
+            cat_features.append(name)
+        else:
+            numeric_features.append(name)
+    
+    transformer = get_transformer(cat_features, numeric_features)
+    X_train = transformer.fit_transform(train)
+    X_test = transformer.transform(test)
+    
+    return X_train, np.array(y_train), np.array(is_protected_train), \
+           X_test, np.array(y_test), np.array(is_protected_test)
+
+
 # ______________ Census ______________
 def read_census(data_dir='census-income'):
     colnames = [

@@ -129,7 +129,7 @@ def get_compass(data_dir='compass', test_size=0.25, random_state=239):
 
 
 # ______________ Census ______________
-def read_census(data_dir='census-income'):
+def read_kdd(data_dir='kdd'):
     colnames = [
         "age",
         "class of worker",
@@ -155,7 +155,7 @@ def read_census(data_dir='census-income'):
         "state of previous residence",
         "detailed household and family stat",
         "detailed household summary in household",
-        "unknown",
+        "instance weight",
         "migration code-change in msa",
         "migration code-change in reg",
         "migration code-move within reg",
@@ -179,8 +179,8 @@ def read_census(data_dir='census-income'):
     return train, test
 
 
-def get_census(data_dir='census-income'):
-    train, test = read_census(data_dir)
+def get_kdd(data_dir='kdd'):
+    train, test = read_kdd(data_dir)
     
     is_protected_train = (train['sex'] == 'Female').astype('int')
     y_train = (train['taxable income amount'] != '- 50000.').astype('int')
@@ -203,3 +203,20 @@ def get_census(data_dir='census-income'):
     
     return X_train, np.array(y_train), np.array(is_protected_train), \
            X_test, np.array(y_test), np.array(is_protected_test)
+# ___________
+
+
+def get_dataset(dataset_name, data_dir=None, **kwargs):
+    if data_dir is None:
+        data_dir = dataset_name
+    
+    if dataset_name == 'adult':
+        return get_adult(data_dir, **kwargs)
+    if dataset_name == 'bank':
+        return get_bank(data_dir, **kwargs)
+    if dataset_name == 'compass':
+        return get_compass(data_dir, **kwargs)
+    if dataset_name == 'kdd':
+        return get_kdd(data_dir, **kwargs)
+    
+    raise RuntimeError(f'unknown dataset {dataset_name}')

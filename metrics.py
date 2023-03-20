@@ -48,11 +48,11 @@ def equalized_odds(y_true, y_pred, is_protected):
 
 def calculate_metrics(y_true, y_pred, is_protected):
     return {
-        'accuracy': accuracy_score(y_true, y_pred),
-        'balanced_accuracy': balanced_accuracy_score(y_true, y_pred),
-        'eq_odds': equalized_odds(y_true, y_pred, is_protected),
-        'tpr_protected': tpr_protected(y_true, y_pred, is_protected),
-        'tpr_non_protected': tpr_non_protected(y_true, y_pred, is_protected),
-        'tnr_protected': tnr_protected(y_true, y_pred, is_protected),
-        'tnr_non_protected': tnr_non_protected(y_true, y_pred, is_protected)
+        'Accuracy': accuracy_score(y_true, y_pred),
+        'Bal. Acc.': balanced_accuracy_score(y_true, y_pred),
+        'Eq.Odds': equalized_odds(y_true, y_pred, is_protected),
+        'TPR Prot.': tpr_protected(y_true, y_pred, is_protected),
+        'TPR Non-Prot.': tpr_non_protected(y_true, y_pred, is_protected),
+        'TNR Prot.': tnr_protected(y_true, y_pred, is_protected),
+        'TNR Non-Prot.': tnr_non_protected(y_true, y_pred, is_protected)
     }

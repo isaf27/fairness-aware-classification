@@ -69,20 +69,6 @@ class AdaFair:
                   for alpha, classifier in zip(self.alphas, self.classifiers)) > 0
         return out
     
-def get_nearest_neighbor(minority_x, x, k):
-    distances = []
-    nearest_neighbors_index = []
-    for i in range(len(minority_x)):
-        if minority_x[i][:] == x:
-            continue
-        distance = np.sqrt(np.sum(np.square(np.array(x) - np.array(minority_x[i][:]))))
-        distances.append([distance, i])
-    distances = sorted(distances)
-    for i in range(k):
-        nearest_neighbors_index.append(distances[i][1])
-
-    return nearest_neighbors_index
-    
 def smote_resampling(kdtree, X, y, N, k=11):
     res_x, res_y = [], []
     for n in range(N):

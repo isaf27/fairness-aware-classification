@@ -1,7 +1,8 @@
 import numpy as np
+from tqdm.notebook import trange
 
 from sklearn.tree import DecisionTreeClassifier
-from sklearn.ensemble import AdaBoostClassifier
+from sklearn.ensemble import AdaBoostClassifier, RandomForestClassifier
 from sklearn.neighbors import KDTree
 from metrics import tpr_protected, tnr_protected, tnr_non_protected, tpr_non_protected
 
@@ -69,15 +70,36 @@ class AdaFair:
                   for alpha, classifier in zip(self.alphas, self.classifiers)) > 0
         return out
     
-def smote_resampling(kdtree, X, y, N, k=11):
+def get_nearest_neighbor(minority_x, x, k):
+    distances = []
+    nearest_neighbors_index = []
+    for i in range(len(minority_x)):
+        if minority_x[i][:] == x:
+            continue
+        distance = np.sqrt(np.sum(np.square(np.array(x) - np.array(minority_x[i][:]))))
+        distances.append([distance, i])
+    distances = sorted(distances)
+    for i in range(k):
+        nearest_neighbors_index.append(distances[i][1])
+
+    return nearest_neighbors_index
+    
+def smote_resampling(kdtree, X, y, N, k=33):
     res_x, res_y = [], []
+    # TODO: this will fail for non-integer categorical features, so no feature normalization!!
+    cat_features = np.nonzero(np.all(np.isclose(np.mod(X, 1), 0), 0))[0]
     for n in range(N):
         i = np.random.randint(0, len(X) - 1)
-        _, neigbs = kdtree.query(X[i:i + 1], k=k)
+        dst, neigbs = kdtree.query(X[i:i + 1], k=k)
         neigb = neigbs[0, np.random.randint(0, k - 1)]
-        a = np.random.rand(X[i].shape[0])
+#         print('Neigb:', neigbs, dst)
         
-        res_x.append((1 - a) * X[i] + a * X[neigb])
+        a = np.random.rand(X[i].shape[0])
+        new_sample = (1 - a) * X[i] + a * X[neigb]
+#         for f in cat_features:
+#             new_sample[f] = np.bincount(np.rint(X[neigbs[0], f]).astype(int)).argmax()
+        
+        res_x.append(new_sample)
         ys = y[neigbs[0]]
         res_y.append(max(set(ys), key=lambda g: (ys == g).sum()))
     
@@ -89,16 +111,15 @@ class SMOTEBoost:
         self.base_classifier = base_classifier
     
     def fit(self, X, y, is_protected):
-        y = 2 * y - 1
         m = len(X)
         D = np.ones(m, dtype=float) / m
         self.classifiers = []
         self.alphas = []
-        N = max(1, (1 - is_protected).sum() - is_protected.sum())
+        N = 100
         
-        tree = KDTree(X[is_protected], leaf_size=2)
-        for i in range(self.n_estimators):
-            smote_X, smote_y = smote_resampling(tree, X[is_protected], y[is_protected], N)
+        tree = KDTree(X[is_protected == 1], leaf_size=2)
+        for i in trange(self.n_estimators, leave=False, position=1, desc='Еба́ный SMOTEBoost'):
+            smote_X, smote_y = smote_resampling(tree, X[is_protected == 1], y[is_protected == 1], N)
             new_X, new_y = np.vstack((X, smote_X)), np.append(y, smote_y)
             new_D = np.ones(N, dtype=float) / N
             D = np.append(D, new_D)
@@ -109,16 +130,16 @@ class SMOTEBoost:
             y_prob = self.classifiers[-1].predict_proba(new_X)
             
             likelihood = y_prob[:, 1]
-            likelihood[new_y == -1] = 1 - likelihood[new_y == -1]
-            eps = (D * likelihood).sum()
+            likelihood[new_y == 0] = 1 - likelihood[new_y == 0]
+            eps = (2 * D * (1 - likelihood)).sum()
             beta = eps / (1 - eps)
             self.alphas.append(-np.log(beta))
-            w = likelihood
-            D = (D * np.power(beta, w))[:X.shape[0]]
+            D = (D * np.power(beta, 1 - likelihood))[:X.shape[0]]
             D /= D.sum()
+            
+            print('current train error:', (self.predict(X) == y).mean())
     
     def predict(self, X):
-        final_predictions = np.zeros(X.shape[0])
-        out = sum(alpha * classifier.predict(X)
-                  for alpha, classifier in zip(self.alphas, self.classifiers)) > 0
+        out = sum(alpha * classifier.predict_proba(X)
+                  for alpha, classifier in zip(self.alphas, self.classifiers)).argmax(1)
         return out

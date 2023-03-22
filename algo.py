@@ -117,7 +117,7 @@ class SMOTEBoost:
             
             likelihood = _take_along_y(y_prob, y)
             dst_not_y = _take_along_y(D, 1 - y)
-            eps = 2 * dst_not_y * (1 - likelihood)).sum()
+            eps = (2 * dst_not_y * (1 - likelihood)).sum()
             beta = eps / (1 - eps)
             self.alphas.append(-np.log(beta))
             D = (D * np.power(beta, 1 - likelihood)[:, None])

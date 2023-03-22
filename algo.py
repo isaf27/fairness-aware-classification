@@ -70,60 +70,58 @@ class AdaFair:
                   for alpha, classifier in zip(self.alphas, self.classifiers)) > 0
         return out
     
-def smote_resampling(kdtree, X, y, N, k=33):
+def smote_resampling(kdtree, X, N, k=11):
     res_x, res_y = [], []
-    # TODO: this will fail for non-integer categorical features, so no feature normalization!!
-    cat_features = np.nonzero(np.all(np.isclose(np.mod(X, 1), 0), 0))[0]
     for n in range(N):
         i = np.random.randint(0, len(X) - 1)
         dst, neigbs = kdtree.query(X[i:i + 1], k=k)
         neigb = neigbs[0, np.random.randint(0, k - 1)]
-#         print('Neigb:', neigbs, dst)
-        
         a = np.random.rand(X[i].shape[0])
         new_sample = (1 - a) * X[i] + a * X[neigb]
-#         for f in cat_features:
-#             new_sample[f] = np.bincount(np.rint(X[neigbs[0], f]).astype(int)).argmax()
-        
         res_x.append(new_sample)
-        ys = y[neigbs[0]]
-        res_y.append(max(set(ys), key=lambda g: (ys == g).sum()))
-    
-    return np.array(res_x), np.array(res_y)
-    
+    return np.array(res_x)
+
+def _take_along_y(arr, y):
+    res = np.zeros_like(arr[:, 0])
+    res[y == 1] = arr[:, 1][y == 1]
+    res[y == 0] = arr[:, 0][y == 0]
+    return res
+
 class SMOTEBoost:
-    def __init__(self, n_estimators=50, base_classifier=lambda: DecisionTreeClassifier(max_depth=1)):
+    def __init__(self, n_estimators=10, base_classifier=lambda: DecisionTreeClassifier(max_depth=1)):
+        self.base_classifier = base_classifier  
         self.n_estimators = n_estimators
-        self.base_classifier = base_classifier
-    
+
     def fit(self, X, y, is_protected):
         m = len(X)
-        D = np.ones(m, dtype=float) / m
+        D = np.ones_like(X) / len(y)
+        for i in range(len(y)):
+            D[i, y[i]] = 0
         self.classifiers = []
         self.alphas = []
-        N = 100
+        N = 10
+
+        self.classes_ = np.array([0, 1])
+        protected_class = 1 if y.mean() < 0.5 else 0
+        X_protected = X[y == protected_class]
         
-        tree = KDTree(X[is_protected == 1], leaf_size=2)
-        for i in trange(self.n_estimators, leave=False, position=1, desc='Еба́ный SMOTEBoost'):
-            smote_X, smote_y = smote_resampling(tree, X[is_protected == 1], y[is_protected == 1], N)
-            new_X, new_y = np.vstack((X, smote_X)), np.append(y, smote_y)
-            new_D = np.ones(N, dtype=float) / N
-            D = np.append(D, new_D)
-            D /= D.sum()
+        tree = KDTree(X_protected, leaf_size=2)
+        for i in range(self.n_estimators):
+            smote_X = smote_resampling(tree, X_protected, N)
+            smote_y = np.full(N, fill_value=protected_class)
+            new_X, new_y = np.vstack((X, smote_X)), np.concatenate((y, smote_y))
+
+            self.classifiers.append(self.base_classifier())
+            self.classifiers[-1].fit(new_X, new_y)
+            y_prob = self.classifiers[i].predict_proba(X)
             
-            self.classifiers.append(self.base_classifier())     
-            self.classifiers[-1].fit(new_X, new_y, sample_weight=D)
-            y_prob = self.classifiers[-1].predict_proba(new_X)
-            
-            likelihood = y_prob[:, 1]
-            likelihood[new_y == 0] = 1 - likelihood[new_y == 0]
-            eps = (2 * D * (1 - likelihood)).sum()
+            likelihood = _take_along_y(y_prob, y)
+            dst_not_y = _take_along_y(D, 1 - y)
+            eps = 2 * dst_not_y * (1 - likelihood)).sum()
             beta = eps / (1 - eps)
             self.alphas.append(-np.log(beta))
-            D = (D * np.power(beta, 1 - likelihood))[:X.shape[0]]
+            D = (D * np.power(beta, 1 - likelihood)[:, None])
             D /= D.sum()
-            
-            print('current train error:', (self.predict(X) == y).mean())
     
     def predict(self, X):
         out = sum(alpha * classifier.predict_proba(X)

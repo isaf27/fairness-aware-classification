@@ -6,6 +6,7 @@ from sklearn.ensemble import AdaBoostClassifier, RandomForestClassifier
 from sklearn.neighbors import KDTree
 from metrics import tpr_protected, tnr_protected, tnr_non_protected, tpr_non_protected, equalized_odds
 from sklearn.linear_model import LogisticRegression
+from imblearn.ensemble import RUSBoostClassifier
 
 class AdaBoost:
     def __init__(self, n_estimators=50, base_classifier=lambda: DecisionTreeClassifier(max_depth=1)):
@@ -190,3 +191,13 @@ class SMOTEBoost:
 class SMOTEBoostProtected(SMOTEBoost):
     def __init__(self, n_estimators=10, base_classifier=lambda: LogisticRegression()):
         super(SMOTEBoostProtected, self).__init__(n_estimators, base_classifier, True)
+
+class RUSBoost:
+    def __init__(self):
+        self._clf = RUSBoostClassifier()
+    
+    def fit(self, X, y, is_protected):
+        self._clf.fit(X, y)
+    
+    def predict(self, X):
+        return self._clf.predict(X)

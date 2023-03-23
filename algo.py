@@ -71,6 +71,57 @@ class AdaFair:
                   for alpha, classifier in zip(self.alphas, self.classifiers)) > 0
         return out
     
+def _calculate_u_correct(y_true, y_pred, y_pred_cum, is_protected, eps=1e-5):
+    deltaFNR = tnr_protected(y_true, y_pred_cum, is_protected) - tnr_non_protected(y_true, y_pred_cum, is_protected)
+    deltaFPR = tpr_protected(y_true, y_pred_cum, is_protected) - tpr_non_protected(y_true, y_pred_cum, is_protected)
+    u = np.zeros(y_true.shape, dtype=float)
+    s_plus = ((~is_protected) & y_true)
+    s_minus = ((~is_protected) & (~y_true))
+    s_hat_plus = (is_protected & y_true)
+    s_hat_minus = (is_protected & (~y_true))
+    fnr_mask = (y_true != y_pred) & (((deltaFNR > eps) & s_plus) | ((deltaFNR < -eps) & s_hat_plus))
+    fpr_mask = (y_true != y_pred) & (((deltaFPR > eps) & s_minus) | ((deltaFPR < -eps) & s_hat_minus))
+    u[fnr_mask] = np.abs(deltaFNR)
+    u[fpr_mask] = np.abs(deltaFPR)
+    return u
+    
+def _ada_boost_distribution_correct(y, y_pred_t, confidence, distribution, alpha_t, u):
+    distribution *= np.exp(alpha_t * (y != y_pred_t) * confidence) * (1 + u)
+    distribution /= distribution.sum()
+    return distribution
+
+class AdaFairCorrect:
+    def __init__(self, n_estimators=200, base_classifier=lambda: DecisionTreeClassifier(max_depth=2)):
+        self.n_estimators = n_estimators
+        self.base_classifier = base_classifier
+    
+    def fit(self, X, y, is_protected):
+        y = 2 * y - 1
+        n_samples = len(X)
+        distribution = np.ones(n_samples, dtype=float) / n_samples
+        current_predictions = np.zeros(n_samples, dtype=float)
+        self.classifiers = []
+        self.alphas = []
+        for i in range(self.n_estimators):
+            self.classifiers.append(self.base_classifier())     
+            self.classifiers[-1].fit(X, y, sample_weight=distribution)
+            y_pred_t = self.classifiers[-1].predict(X)
+            y_prob_t = self.classifiers[-1].predict_proba(X)[:, 1]
+            
+            alpha = _ada_boost_alpha(y, y_pred_t, distribution)
+            self.alphas.append(alpha)
+            current_predictions += alpha * y_pred_t
+            
+            u = _calculate_u_correct(y, y_pred_t, current_predictions > 0, is_protected)
+            distribution = _ada_boost_distribution_correct(
+                y, y_pred_t, np.abs(2 * y_prob_t - 1), distribution, self.alphas[-1], u)
+    
+    def predict(self, X):
+        final_predictions = np.zeros(X.shape[0])
+        out = sum(alpha * classifier.predict(X)
+                  for alpha, classifier in zip(self.alphas, self.classifiers)) > 0
+        return out
+    
 def smote_resampling(kdtree, X, y, N, k=11):
     res_x, res_y = [], []
     for n in range(N):

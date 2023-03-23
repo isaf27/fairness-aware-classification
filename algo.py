@@ -8,6 +8,71 @@ from metrics import tpr_protected, tnr_protected, tnr_non_protected, tpr_non_pro
 from sklearn.linear_model import LogisticRegression
 from imblearn.ensemble import RUSBoostClassifier
 
+from catboost import CatBoostClassifier, Pool
+from metrics import fnr_protected, fnr_non_protected, fpr_protected, fpr_non_protected
+
+
+def _calculate_weights(y_true, y_pred, is_protected, eps=0.03):
+    deltaFNR = fnr_protected(y_true, y_pred, is_protected) - fnr_non_protected(y_true, y_pred, is_protected)
+    deltaFPR = fpr_protected(y_true, y_pred, is_protected) - fpr_non_protected(y_true, y_pred, is_protected)
+    y_true = y_true.astype('bool')
+    y_pred = y_pred.astype('bool')
+    u = np.zeros(y_true.shape, dtype=float)
+    s_plus = (np.logical_not(is_protected) & y_true)
+    s_minus = (np.logical_not(is_protected) & np.logical_not(y_true))
+    s_hat_plus = (is_protected & y_true)
+    s_hat_minus = (is_protected & np.logical_not(y_true))
+    C = 0.7
+    U = 1.0 #1.0 - np.mean(y_true)
+    if deltaFNR > eps:
+        u += s_hat_plus.astype('float') * 1.0 * U
+        u += s_plus.astype('float') * C * U
+    elif deltaFNR < -eps:
+        u += s_hat_plus.astype('float') * C * U
+        u += s_plus.astype('float') * 1.0 * U
+    else:
+        u += s_hat_plus.astype('float') * 1.0 * U
+        u += s_plus.astype('float') * 1.0 * U
+
+    U = 1.0 #np.mean(y_true)
+    if deltaFPR > eps:
+        u += s_hat_minus.astype('float') * 1.0 * U
+        u += s_minus.astype('float') * C * U
+    elif deltaFPR < -eps:
+        u += s_hat_minus.astype('float') * C * U
+        u += s_minus.astype('float') * 1.0 * U
+    else:
+        u += s_hat_minus.astype('float') * 1.0 * U
+        u += s_minus.astype('float') * 1.0 * U
+
+    return u
+
+class CatBoostReweight:
+    def __init__(self):
+        pass
+    
+    def fit(self, X, y, is_protected):
+        self.models = []
+        self.model = None
+        res = np.zeros(X.shape[0])
+        for it in range(10):
+            if self.model is not None:
+                weight = _calculate_weights(y, (res > 0), is_protected)
+                pool = Pool(X, label=y, baseline=res, weight=weight)
+            else:
+                pool = Pool(X, label=y, baseline=res)
+            self.model = CatBoostClassifier(iterations=10, verbose=0, random_seed=239)
+            self.model.fit(pool)
+            self.models.append(self.model)
+            res += self.model.predict(X, prediction_type='RawFormulaVal')
+            print(f'{it} done!')
+    
+    def predict(self, X):
+        res = np.zeros(X.shape[0])
+        for model in self.models:
+            res += model.predict(X, prediction_type='RawFormulaVal')
+        return (res > 0)
+
 class AdaBoost:
     def __init__(self, n_estimators=50, base_classifier=lambda: DecisionTreeClassifier(max_depth=1)):
         self._adaboost = AdaBoostClassifier(base_classifier(), n_estimators=n_estimators)

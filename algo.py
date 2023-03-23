@@ -41,9 +41,10 @@ def _ada_boost_distribution(y, y_pred_t, confidence, distribution, alpha_t, u):
     return distribution
 
 class AdaFair:
-    def __init__(self, n_estimators=50, base_classifier=lambda: DecisionTreeClassifier(max_depth=1)):
+    def __init__(self, n_estimators=100, base_classifier=lambda: DecisionTreeClassifier(max_depth=1), u_weight=5):
         self.n_estimators = n_estimators
         self.base_classifier = base_classifier
+        self.u_weight = u_weight
     
     def fit(self, X, y, is_protected):
         y = 2 * y - 1
@@ -61,7 +62,7 @@ class AdaFair:
             self.alphas.append(alpha)
             current_predictions += alpha * y_pred_t
             
-            u = _calculate_u(y, current_predictions > 0, is_protected)
+            u = self.u_weight * _calculate_u(y, current_predictions > 0, is_protected)
             distribution = _ada_boost_distribution(
                 y, y_pred_t, np.abs(current_predictions), distribution, self.alphas[-1], u)
     

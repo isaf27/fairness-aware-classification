@@ -14,7 +14,7 @@ def normalize(train, test):
 
 def get_transformer(cat_features, numeric_features):
     return ColumnTransformer(transformers=[
-        ('cat', OneHotEncoder(handle_unknown='error', sparse_output=False), cat_features),
+        ('cat', OneHotEncoder(handle_unknown='ignore', sparse_output=False), cat_features),
         ('numeric', SimpleImputer(), numeric_features)
     ])
 

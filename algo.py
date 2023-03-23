@@ -4,11 +4,12 @@ from tqdm.notebook import trange
 from sklearn.tree import DecisionTreeClassifier
 from sklearn.ensemble import AdaBoostClassifier, RandomForestClassifier
 from sklearn.neighbors import KDTree
-from metrics import tpr_protected, tnr_protected, tnr_non_protected, tpr_non_protected
+from metrics import tpr_protected, tnr_protected, tnr_non_protected, tpr_non_protected, equalized_odds
+from sklearn.linear_model import LogisticRegression
 
 class AdaBoost:
-    def __init__(self):
-        self._adaboost = AdaBoostClassifier()
+    def __init__(self, n_estimators=50, base_classifier=lambda: DecisionTreeClassifier(max_depth=1)):
+        self._adaboost = AdaBoostClassifier(base_classifier(), n_estimators=n_estimators)
     
     def fit(self, X, y, is_protected):
         self._adaboost.fit(X, y)
@@ -70,7 +71,7 @@ class AdaFair:
                   for alpha, classifier in zip(self.alphas, self.classifiers)) > 0
         return out
     
-def smote_resampling(kdtree, X, N, k=11):
+def smote_resampling(kdtree, X, y, N, k=11):
     res_x, res_y = [], []
     for n in range(N):
         i = np.random.randint(0, len(X) - 1)
@@ -79,7 +80,9 @@ def smote_resampling(kdtree, X, N, k=11):
         a = np.random.rand(X[i].shape[0])
         new_sample = (1 - a) * X[i] + a * X[neigb]
         res_x.append(new_sample)
-    return np.array(res_x)
+        y_neigbs = y[neigbs[0]]
+        res_y.append(np.unique(y_neigbs, return_counts=True)[1].argmax())
+    return np.array(res_x), np.array(res_y)
 
 def _take_along_y(arr, y):
     res = np.zeros_like(arr[:, 0])
@@ -88,9 +91,10 @@ def _take_along_y(arr, y):
     return res
 
 class SMOTEBoost:
-    def __init__(self, n_estimators=10, base_classifier=lambda: DecisionTreeClassifier(max_depth=1)):
+    def __init__(self, n_estimators=10, base_classifier=lambda: LogisticRegression(), sample_protected=False):
         self.base_classifier = base_classifier  
         self.n_estimators = n_estimators
+        self._sample_protected = sample_protected
 
     def fit(self, X, y, is_protected):
         m = len(X)
@@ -99,16 +103,19 @@ class SMOTEBoost:
             D[i, y[i]] = 0
         self.classifiers = []
         self.alphas = []
-        N = 10
+        N = 100
 
-        self.classes_ = np.array([0, 1])
-        protected_class = 1 if y.mean() < 0.5 else 0
-        X_protected = X[y == protected_class]
+        if self._sample_protected:
+            X_protected = X[is_protected == 1]
+            y_protected = y[is_protected == 1]
+        else:
+            protected_class = 1 if y.mean() < 0.5 else 0
+            X_protected = X[y == protected_class]
+            y_protected = np.full(X_protected.shape[0], fill_value=protected_class)
         
         tree = KDTree(X_protected, leaf_size=2)
         for i in range(self.n_estimators):
-            smote_X = smote_resampling(tree, X_protected, N)
-            smote_y = np.full(N, fill_value=protected_class)
+            smote_X, smote_y = smote_resampling(tree, X_protected, y_protected, N)
             new_X, new_y = np.vstack((X, smote_X)), np.concatenate((y, smote_y))
 
             self.classifiers.append(self.base_classifier())
@@ -127,3 +134,7 @@ class SMOTEBoost:
         out = sum(alpha * classifier.predict_proba(X)
                   for alpha, classifier in zip(self.alphas, self.classifiers)).argmax(1)
         return out
+
+class SMOTEBoostProtected(SMOTEBoost):
+    def __init__(self, n_estimators=10, base_classifier=lambda: LogisticRegression()):
+        super(SMOTEBoostProtected, self).__init__(n_estimators, base_classifier, True)

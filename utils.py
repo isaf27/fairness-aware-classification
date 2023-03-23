@@ -7,6 +7,11 @@ from sklearn.impute import SimpleImputer
 from sklearn.model_selection import train_test_split
 
 
+def normalize(train, test):
+    mean, std = train.mean(0)[None, :], train.std(0)[None, :]
+    return (train - mean) / std, (test - mean) / std
+
+
 def get_transformer(cat_features, numeric_features):
     return ColumnTransformer(transformers=[
         ('cat', OneHotEncoder(handle_unknown='error', sparse_output=False), cat_features),
@@ -60,6 +65,8 @@ def get_adult(data_dir='adult'):
     X_train = transformer.fit_transform(train)
     X_test = transformer.transform(test)
     
+    X_train, X_test = normalize(X_train, X_test)
+    
     return X_train, np.array(y_train), np.array(is_protected_train), \
            X_test, np.array(y_test), np.array(is_protected_test)
 
@@ -92,6 +99,8 @@ def get_bank(data_dir='bank', test_size=0.25, random_state=239):
     X_train = transformer.fit_transform(train)
     X_test = transformer.transform(test)
     
+    X_train, X_test = normalize(X_train, X_test)
+    
     return X_train, np.array(y_train), np.array(is_protected_train), \
            X_test, np.array(y_test), np.array(is_protected_test)
 
@@ -123,6 +132,8 @@ def get_compass(data_dir='compass', test_size=0.25, random_state=239):
     transformer = get_transformer(cat_features, numeric_features)
     X_train = transformer.fit_transform(train)
     X_test = transformer.transform(test)
+    
+    X_train, X_test = normalize(X_train, X_test)
     
     return X_train, np.array(y_train), np.array(is_protected_train), \
            X_test, np.array(y_test), np.array(is_protected_test)
@@ -200,6 +211,8 @@ def get_kdd(data_dir='kdd'):
     transformer = get_transformer(cat_features, numeric_features)
     X_train = transformer.fit_transform(train)
     X_test = transformer.transform(test)
+    
+    X_train, X_test = normalize(X_train, X_test)
     
     return X_train, np.array(y_train), np.array(is_protected_train), \
            X_test, np.array(y_test), np.array(is_protected_test)

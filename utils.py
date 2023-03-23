@@ -43,15 +43,17 @@ def read_adult(data_dir='adult'):
     return train, test
 
 
-def get_adult(data_dir='adult'):
+def get_adult(data_dir='adult', test_size=0.25, random_state=239):
     train, test = read_adult(data_dir)
+    data = pd.concat([train, test])
     
-    is_protected_train = (train['sex'] == 'Female').astype('int')
-    y_train = ((train['income'] == '>50K') | (train['income'] == '>50K.')).astype('int')
-    train.drop(labels=['income'], axis=1, inplace=True)
-    is_protected_test = (test['sex'] == 'Female').astype('int')
-    y_test = ((test['income'] == '>50K') | (test['income'] == '>50K.')).astype('int')
-    test.drop(labels=['income'], axis=1, inplace=True)
+    is_protected = (data['sex'] == 'Female').astype('int')
+    y = ((data['income'] == '>50K') | (data['income'] == '>50K.')).astype('int')
+    data.drop(labels=['income'], axis=1, inplace=True)
+    
+    train, test, y_train, y_test, is_protected_train, is_protected_test = train_test_split(
+        data, y, is_protected, test_size=test_size, random_state=random_state, stratify=(is_protected * 2 + y)
+    )
     
     cat_features = []
     numeric_features = []
@@ -140,7 +142,7 @@ def get_compass(data_dir='compass', test_size=0.25, random_state=239):
 
 
 # ______________ Census ______________
-def read_kdd(data_dir='kdd'):
+def read_kdd(data_dir='kdd', test_size=0.25, random_state=239):
     colnames = [
         "age",
         "class of worker",
@@ -192,13 +194,15 @@ def read_kdd(data_dir='kdd'):
 
 def get_kdd(data_dir='kdd'):
     train, test = read_kdd(data_dir)
+    data = pd.concat([train, test])
     
-    is_protected_train = (train['sex'] == 'Female').astype('int')
-    y_train = (train['taxable income amount'] != '- 50000.').astype('int')
-    train.drop(labels=['taxable income amount'], axis=1, inplace=True)
-    is_protected_test = (test['sex'] == 'Female').astype('int')
-    y_test = (test['taxable income amount'] != '- 50000.').astype('int')
-    test.drop(labels=['taxable income amount'], axis=1, inplace=True)
+    is_protected = (data['sex'] == 'Female').astype('int')
+    y = (train['taxable income amount'] != '- 50000.').astype('int')
+    data.drop(labels=['taxable income amount'], axis=1, inplace=True)
+    
+    train, test, y_train, y_test, is_protected_train, is_protected_test = train_test_split(
+        data, y, is_protected, test_size=test_size, random_state=random_state, stratify=(is_protected * 2 + y)
+    )
     
     cat_features = []
     numeric_features = []

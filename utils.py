@@ -192,7 +192,7 @@ def read_kdd(data_dir='kdd', test_size=0.25, random_state=239):
     return train, test
 
 
-def get_kdd(data_dir='kdd'):
+def get_kdd(data_dir='kdd', test_size=0.25, random_state=239):
     train, test = read_kdd(data_dir)
     data = pd.concat([train, test])
     

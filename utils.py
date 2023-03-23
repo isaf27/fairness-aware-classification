@@ -197,7 +197,7 @@ def get_kdd(data_dir='kdd', test_size=0.25, random_state=239):
     data = pd.concat([train, test])
     
     is_protected = (data['sex'] == 'Female').astype('int')
-    y = (train['taxable income amount'] != '- 50000.').astype('int')
+    y = (data['taxable income amount'] != '- 50000.').astype('int')
     data.drop(labels=['taxable income amount'], axis=1, inplace=True)
     
     train, test, y_train, y_test, is_protected_train, is_protected_test = train_test_split(

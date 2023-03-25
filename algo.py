@@ -12,7 +12,7 @@ from catboost import CatBoostClassifier, Pool
 from metrics import fnr_protected, fnr_non_protected, fpr_protected, fpr_non_protected
 
 
-def _calculate_weights(y_true, y_pred, is_protected, eps=0.03):
+def _calculate_weights(y_true, y_pred, is_protected, C=0.7, eps=0.03):
     deltaFNR = fnr_protected(y_true, y_pred, is_protected) - fnr_non_protected(y_true, y_pred, is_protected)
     deltaFPR = fpr_protected(y_true, y_pred, is_protected) - fpr_non_protected(y_true, y_pred, is_protected)
     y_true = y_true.astype('bool')
@@ -22,7 +22,6 @@ def _calculate_weights(y_true, y_pred, is_protected, eps=0.03):
     s_minus = (np.logical_not(is_protected) & np.logical_not(y_true))
     s_hat_plus = (is_protected & y_true)
     s_hat_minus = (is_protected & np.logical_not(y_true))
-    C = 0.7
     U = 1.0 #1.0 - np.mean(y_true)
     if deltaFNR > eps:
         u += s_hat_plus.astype('float') * 1.0 * U
@@ -48,24 +47,35 @@ def _calculate_weights(y_true, y_pred, is_protected, eps=0.03):
     return u
 
 class CatBoostReweight:
-    def __init__(self):
-        pass
+    def __init__(self, n_iter=10, cb_trees=10, C=0.7, eps=0.03, balance='SqrtBalanced'):
+        self.n_iter = n_iter
+        self.cb_trees = cb_trees
+        self.C = C
+        self.eps = eps
+        self.balance = balance
     
     def fit(self, X, y, is_protected):
         self.models = []
         self.model = None
         res = np.zeros(X.shape[0])
-        for it in range(10):
+        pool = Pool(X, label=y, baseline=res)
+        for it in range(self.n_iter):
             if self.model is not None:
-                weight = _calculate_weights(y, (res > 0), is_protected)
-                pool = Pool(X, label=y, baseline=res, weight=weight)
-            else:
-                pool = Pool(X, label=y, baseline=res)
-            self.model = CatBoostClassifier(iterations=10, verbose=0, random_seed=239)
+                pool.set_baseline(res)
+                pool.set_weight(_calculate_weights(y, (res > 0), is_protected, C=self.C, eps=self.eps))
+            self.model = CatBoostClassifier(
+                iterations=self.cb_trees,
+                verbose=0,
+                random_seed=239,
+                eta=0.1,
+                thread_count=-1,
+                auto_class_weights=self.balance
+            )
             self.model.fit(pool)
             self.models.append(self.model)
             res += self.model.predict(X, prediction_type='RawFormulaVal')
-            print(f'{it} done!')
+            #print(f'{it} done!')
+        return (res > 0)
     
     def predict(self, X):
         res = np.zeros(X.shape[0])

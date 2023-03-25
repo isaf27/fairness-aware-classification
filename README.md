@@ -11,5 +11,5 @@ The list of compared methods:
 | RUSBoost  | [RUSBoost: A Hybrid Approach to Alleviating Class Imbalance](https://ieeexplore.ieee.org/document/5299216)  |
 | AdaBoost  | [A Decision-Theoretic Generalization of On-Line Learning and an Application to Boosting](https://www.sciencedirect.com/science/article/pii/S002200009791504X)  |
 | AdaFair  | [AdaFair: Cumulative Fairness Adaptive Boosting](https://arxiv.org/abs/1909.08982)  |
-| AttentiveGradientBased | Our own novel approach |
+| AttentiveGradientBoosting | Our novel approach |
 

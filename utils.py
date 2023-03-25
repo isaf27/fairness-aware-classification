@@ -109,7 +109,7 @@ def get_bank(data_dir='bank', test_size=0.25, random_state=239):
 
 # ______________ Compass ______________
 def read_compass(data_dir='compass'):
-    return pd.read_csv(Path(data_dir) / 'propublicaCompassRecividism_data_fairml.csv' / 'propublica_data_for_fairml.csv')
+    return pd.read_csv(Path(data_dir) / 'propublica_data_for_fairml.csv')
 
 
 def get_compass(data_dir='compass', test_size=0.25, random_state=239):

@@ -129,7 +129,7 @@ dmypy.json
 .pyre/
 
 .ipynb_checkpoints/
-# adult/
-# bank/
-# compass/
-# kdd/
+adult/
+bank/
+compass/
+kdd/

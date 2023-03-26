@@ -13,3 +13,20 @@ The list of compared methods:
 | AdaFair  | [AdaFair: Cumulative Fairness Adaptive Boosting](https://arxiv.org/abs/1909.08982)  |
 | AttentiveGradientBoosting | Our novel approach |
 
+# How to run
+
+1. Firstly you need to download all datasets. To do it you should just run script `download.sh` from working directory. Note, that `kaggle` `pip` library should be installed to download some datasets. As a result four datasets will be downloaded and folders `adult`, `bank`, `compass`, `kdd` will be created.
+2. To run experiments you can just run notebook `experiments.ipynb`. As a result plots will be saved in folder `plots`.
+
+# Description of the structure
+
+- `download.sh`: script for downloading datasets
+- `download.ipynb`: notebook for downloading datasets (similar to script)
+- `experiments.ipynb`: notebook to run experiments
+- `algo.py`: implementation of all algorithms are written here
+- `utils.py`: functions for loading and preprocessing datasets are written here
+- `metrics.py`: implementations of all required metrics are written here
+
+- `presentation.pdf`: presentation of the project
+- `report.pdf`: report of the project
+- `plots`: folder with plots created after the experiment

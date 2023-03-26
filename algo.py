@@ -163,7 +163,8 @@ def _calculate_u_correct(y_true, y_pred, y_pred_cum, is_protected, eps=1e-5):
     return u
     
 def _ada_boost_distribution_correct(y, y_pred_t, confidence, distribution, alpha_t, u):
-    distribution *= np.exp(alpha_t * (y != y_pred_t) * confidence) * (1 + u)
+    value = np.max(alpha_t * (y != y_pred_t) * confidence)
+    distribution *= np.exp(alpha_t * (y != y_pred_t) * confidence - value) * (1 + u)
     distribution /= distribution.sum()
     return distribution
 

@@ -15,11 +15,13 @@ Skoltech ML Course project "Boosting for Fairness-Aware Classification"
 
 # How to run
 
-1. Firstly you need to download all datasets. To do it you should just run script `download.sh` from working directory. Note, that `kaggle` `pip` library should be installed to download some datasets. As a result four datasets will be downloaded and folders `adult`, `bank`, `compass`, `kdd` will be created.
-2. To run experiments you can just run notebook `experiments.ipynb`. As a result plots will be saved in folder `plots`.
+1. Firstly to install all required packages from `requirements.txt` you should run `pip install -r requirements.txt`.
+2. Secondly you need to download all datasets. To do it you should just run script `download.sh` from working directory. Note, that `kaggle` `pip` library should be installed to download some datasets. As a result four datasets will be downloaded and folders `adult`, `bank`, `compass`, `kdd` will be created.
+3. To run experiments you can just run notebook `experiments.ipynb`. As a result plots will be saved in folder `plots`.
 
 # Description of the structure
 
+- `requirements.txt`: list of packages that should be installed
 - `download.sh`: script for downloading datasets
 - `download.ipynb`: notebook for downloading datasets (similar to script)
 - `experiments.ipynb`: notebook to run experiments
